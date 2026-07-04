@@ -1,6 +1,8 @@
-import { PROVIDER_MODELS } from "open-sse/config/providerModels.js";
-import { AI_PROVIDERS, ALIAS_TO_ID } from "@/shared/constants/providers";
+import { getComboByName } from "@/lib/localDb";
 import { getModelKind } from "@/shared/constants/models";
+import { AI_PROVIDERS, ALIAS_TO_ID } from "@/shared/constants/providers";
+import { PROVIDER_MODELS } from "open-sse/config/providerModels.js";
+import { getCapabilitiesForModel } from "open-sse/providers/capabilities.js";
 
 const KIND_ENDPOINT = {
   llm: "/v1/chat/completions",
@@ -24,10 +26,9 @@ function buildInfo({ alias, providerId, model, kind, providerInfo }) {
     endpoint: KIND_ENDPOINT[kind] || null,
   };
   if (model.params) out.params = model.params;
-  if (model.capabilities) out.capabilities = model.capabilities;
+  out.capabilities = getCapabilitiesForModel(providerId, model.id);
   if (model.options) out.options = model.options;
   if (model.dimensions) out.dimensions = model.dimensions;
-  if (model.contextWindow) out.contextWindow = model.contextWindow;
   if (kind === "tts" && TTS_VOICES_API.has(providerId)) {
     out.voicesUrl = `/v1/audio/voices?provider=${providerId}`;
   }
@@ -76,6 +77,43 @@ function lookup(fullId, requestedKind) {
   return null;
 }
 
+function buildComboInfo(combo) {
+  const memberCaps = combo.models.map((memberId) => {
+    const slash = memberId.indexOf("/");
+    const provider = slash > 0 ? memberId.slice(0, slash) : memberId;
+    const model = slash > 0 ? memberId.slice(slash + 1) : memberId;
+    return getCapabilitiesForModel(provider, model);
+  });
+
+  const caps = {
+    vision: memberCaps.some((c) => c.vision),
+    pdf: memberCaps.some((c) => c.pdf),
+    audioInput: memberCaps.some((c) => c.audioInput),
+    videoInput: memberCaps.some((c) => c.videoInput),
+    imageOutput: memberCaps.some((c) => c.imageOutput),
+    audioOutput: memberCaps.some((c) => c.audioOutput),
+    search: memberCaps.some((c) => c.search),
+    tools: memberCaps.some((c) => c.tools),
+    reasoning: memberCaps.some((c) => c.reasoning),
+    thinkingFormat: null,
+    thinkingCanDisable: memberCaps.every((c) => c.thinkingCanDisable),
+    thinkingRange: null,
+    contextWindow: Math.max(...memberCaps.map((c) => c.contextWindow)),
+    maxOutput: Math.max(...memberCaps.map((c) => c.maxOutput)),
+  };
+
+  const kind = combo.kind || "llm";
+  return {
+    id: combo.name,
+    name: combo.name,
+    kind,
+    owned_by: "combo",
+    endpoint: KIND_ENDPOINT[kind] || null,
+    capabilities: caps,
+    // comboMembers: combo.models,
+  };
+}
+
 export async function OPTIONS() {
   return new Response(null, {
     headers: { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, OPTIONS" },
@@ -92,6 +130,12 @@ export async function GET(request) {
       { error: { message: "Missing required query param: id (e.g. ?id=openai/dall-e-3)", type: "invalid_request_error" } },
       { status: 400, headers: { "Access-Control-Allow-Origin": "*" } },
     );
+  }
+  const combo = await getComboByName(id);
+  if (combo) {
+    return Response.json(buildComboInfo(combo), {
+      headers: { "Access-Control-Allow-Origin": "*" },
+    });
   }
   const info = lookup(id, kind);
   if (!info) {
