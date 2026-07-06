@@ -37,28 +37,24 @@ export async function restoreFromBlob() {
 
 // Upload current DB to Vercel Blob (fire-and-forget).
 // Debounced: at most once per 5s.
-let _pending = null;
 let _lastUpload = 0;
 const MIN_INTERVAL = 5000;
 
-export function scheduleBackup() {
+// Upload current DB to Vercel Blob after mutations.
+// Throttled: skips if uploaded within last 5s.
+export async function backupToBlob() {
   if (!enabled()) return;
 
   const now = Date.now();
-  if (_pending) return; // already scheduled
+  if (now - _lastUpload < MIN_INTERVAL) return;
 
-  const delay = Math.max(0, MIN_INTERVAL - (now - _lastUpload));
-
-  _pending = setTimeout(async () => {
-    _pending = null;
-    try {
-      const { put } = await import("@vercel/blob");
-      const buffer = fs.readFileSync(DATA_FILE);
-      const result = await put(BLOB_PATH, buffer, { access: "public" });
-      _lastUpload = Date.now();
-      console.log(`[DB][blob] Uploaded ${buffer.length} bytes → ${result.url}`);
-    } catch (err) {
-      console.warn(`[DB][blob] Backup failed: ${err.message}`);
-    }
-  }, delay);
+  try {
+    const { put } = await import("@vercel/blob");
+    const buffer = fs.readFileSync(DATA_FILE);
+    const result = await put(BLOB_PATH, buffer, { access: "public" });
+    _lastUpload = Date.now();
+    console.log(`[DB][blob] Uploaded ${buffer.length} bytes → ${result.url}`);
+  } catch (err) {
+    console.warn(`[DB][blob] Backup failed: ${err.message}`);
+  }
 }
