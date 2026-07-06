@@ -88,7 +88,7 @@ export async function updateSettings(updates) {
       [stringifyJson(next)]
     );
   });
-  await backupToBlob();
+  await backupToBlob(db);
   return mergeWithDefaults(next);
 }
 
