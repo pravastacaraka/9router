@@ -1,5 +1,6 @@
 import { DATA_FILE, ensureDirs } from "./paths.js";
 import { restoreFromBlob } from "./persistence.js";
+import fs from "node:fs";
 
 // Use global to survive Next.js dev hot-reload (module state resets on reload)
 if (!global._dbAdapter) global._dbAdapter = { instance: null, initPromise: null, logged: false };
@@ -58,6 +59,10 @@ async function initAdapter() {
 
   // On Vercel: restore DB snapshot from Blob Storage before opening
   await restoreFromBlob();
+
+  // Verify restored file before opening
+  const fileSize = fs.existsSync(DATA_FILE) ? fs.statSync(DATA_FILE).size : 0;
+  console.log(`[DB] Opening adapter, data file size: ${fileSize} bytes`);
 
   // Order per runtime:
   //   Bun:  bun:sqlite → sql.js

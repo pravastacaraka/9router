@@ -16,11 +16,21 @@ export async function restoreFromBlob() {
     return false;
   }
 
-  console.log("[DB][blob] Attempting restore…");
+  console.log("[DB][blob] Attempting restore →", DATA_FILE);
   const { get } = await import("@vercel/blob");
 
   try {
-    const result = await get(BLOB_PATH, { access: "private" });
+    // Vercel Blob may be eventually consistent — retry with backoff
+    let result = null;
+    for (let i = 0; i < 3; i++) {
+      result = await get(BLOB_PATH, { access: "private" });
+      if (result) break;
+      if (i < 2) {
+        const delay = 500 * (i + 1);
+        console.log(`[DB][blob] Blob not found, retrying in ${delay}ms…`);
+        await new Promise(r => setTimeout(r, delay));
+      }
+    }
     console.log("[DB][blob] get() result:", result ? `found (${result.blob?.size ?? "?"} bytes)` : "null");
     if (!result) {
       console.log("[DB][blob] No existing DB snapshot found — starting fresh");
@@ -33,7 +43,8 @@ export async function restoreFromBlob() {
     }
     const buffer = Buffer.concat(chunks);
     fs.writeFileSync(DATA_FILE, buffer);
-    console.log(`[DB][blob] Restored DB from blob (${buffer.length} bytes)`);
+    const verifySize = fs.statSync(DATA_FILE).size;
+    console.log(`[DB][blob] Restored DB from blob (${buffer.length} → ${verifySize} bytes on disk) [path: ${DATA_FILE}]`);
     return true;
   } catch (err) {
     console.warn(`[DB][blob] Failed to restore: ${err.message} — starting fresh`);
