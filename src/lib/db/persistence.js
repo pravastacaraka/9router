@@ -51,7 +51,7 @@ export async function backupToBlob() {
   try {
     const { put } = await import("@vercel/blob");
     const buffer = fs.readFileSync(DATA_FILE);
-    const result = await put(BLOB_PATH, buffer);
+    const result = await put(BLOB_PATH, buffer, { access: "private", allowOverwrite: true });
     _lastUpload = Date.now();
     console.log(`[DB][blob] Uploaded ${buffer.length} bytes → ${result.url}`);
   } catch (err) {
