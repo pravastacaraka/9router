@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { getSettings } from "@/lib/localDb";
-import { isOidcConfigured } from "@/lib/auth/oidc";
 import { getDashboardAuthSession } from "@/lib/auth/dashboardSession";
+import { isOidcConfigured } from "@/lib/auth/oidc";
+import { getSettings } from "@/lib/localDb";
+import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
@@ -21,7 +21,7 @@ export async function GET() {
       authMode,
       oidcConfigured: isOidcConfigured(settings),
       oidcLoginLabel: (settings.oidcLoginLabel || "Sign in with OIDC").trim() || "Sign in with OIDC",
-      hasPassword: !!settings.password,
+      hasPassword: !!settings.password || !!process.env.INITIAL_PASSWORD,
       displayName,
       loginMethod,
       oidcName: oidcName || null,
@@ -34,7 +34,7 @@ export async function GET() {
       authMode: "password",
       oidcConfigured: false,
       oidcLoginLabel: "Sign in with OIDC",
-      hasPassword: false,
+      hasPassword: !!process.env.INITIAL_PASSWORD,
       displayName: "Password user",
       loginMethod: "Password",
       oidcName: null,

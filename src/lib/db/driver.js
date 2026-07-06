@@ -1,4 +1,5 @@
-import { ensureDirs, DATA_FILE } from "./paths.js";
+import { DATA_FILE, ensureDirs } from "./paths.js";
+import { restoreFromBlob } from "./persistence.js";
 
 // Use global to survive Next.js dev hot-reload (module state resets on reload)
 if (!global._dbAdapter) global._dbAdapter = { instance: null, initPromise: null, logged: false };
@@ -54,6 +55,10 @@ async function trySqlJs() {
 
 async function initAdapter() {
   ensureDirs();
+
+  // On Vercel: restore DB snapshot from Blob Storage before opening
+  await restoreFromBlob();
+
   // Order per runtime:
   //   Bun:  bun:sqlite → sql.js
   //   Node: better-sqlite3 → node:sqlite (≥22.5) → sql.js

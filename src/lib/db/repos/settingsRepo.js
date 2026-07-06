@@ -1,5 +1,6 @@
 import { getAdapter } from "../driver.js";
 import { parseJson, stringifyJson } from "../helpers/jsonCol.js";
+import { scheduleBackup } from "../persistence.js";
 
 const DEFAULT_MITM_ROUTER_BASE = "http://localhost:20128";
 const DEFAULT_HEADROOM_URL = process.env.HEADROOM_URL || "http://localhost:8787";
@@ -87,6 +88,7 @@ export async function updateSettings(updates) {
       [stringifyJson(next)]
     );
   });
+  scheduleBackup();
   return mergeWithDefaults(next);
 }
 

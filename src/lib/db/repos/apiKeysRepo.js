@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import { getAdapter } from "../driver.js";
+import { scheduleBackup } from "../persistence.js";
 
 function rowToKey(row) {
   if (!row) return null;
@@ -42,6 +43,7 @@ export async function createApiKey(name, machineId) {
     `INSERT INTO apiKeys(id, key, name, machineId, isActive, createdAt) VALUES(?, ?, ?, ?, ?, ?)`,
     [apiKey.id, apiKey.key, apiKey.name, apiKey.machineId, 1, apiKey.createdAt]
   );
+  scheduleBackup();
   return apiKey;
 }
 
@@ -58,11 +60,12 @@ export async function updateApiKey(id, data) {
     );
     result = merged;
   });
+  scheduleBackup();
   return result;
 }
-
 export async function deleteApiKey(id) {
   const db = await getAdapter();
+  scheduleBackup();
   const res = db.run(`DELETE FROM apiKeys WHERE id = ?`, [id]);
   return (res?.changes ?? 0) > 0;
 }
