@@ -38,6 +38,7 @@ export async function restoreFromBlob() {
 
 // Upload current DB to Vercel Blob (fire-and-forget).
 // Debounced: at most once per 5s.
+let _lastUpload = 0;
 const MIN_INTERVAL = 5000;
 
 // Upload current DB to Vercel Blob after mutations.
