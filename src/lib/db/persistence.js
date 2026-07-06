@@ -13,21 +13,22 @@ function enabled() {
 export async function restoreFromBlob() {
   if (!enabled()) return false;
 
-  // Dynamic import — @vercel/blob is only needed on Vercel
-  const { head, put } = await import("@vercel/blob");
+  const { get } = await import("@vercel/blob");
 
   try {
-    const blob = await head(BLOB_PATH);
-    if (!blob) {
+    const result = await get(BLOB_PATH, { access: "private" });
+    if (!result) {
       console.log("[DB][blob] No existing DB snapshot found — starting fresh");
       return false;
     }
 
-    const response = await fetch(blob.url);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const buffer = Buffer.from(await response.arrayBuffer());
+    const chunks = [];
+    for await (const chunk of result.stream) {
+      chunks.push(chunk);
+    }
+    const buffer = Buffer.concat(chunks);
     fs.writeFileSync(DATA_FILE, buffer);
-    console.log(`[DB][blob] Restored DB from blob (${blob.size} bytes)`);
+    console.log(`[DB][blob] Restored DB from blob (${buffer.length} bytes)`);
     return true;
   } catch (err) {
     console.warn(`[DB][blob] Failed to restore: ${err.message} — starting fresh`);
