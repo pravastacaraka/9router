@@ -57,7 +57,10 @@ export async function backupToBlob(adapter) {
 
   try {
     // Force WAL flush so readFileSync captures recent writes
+    const sizeBefore = fs.existsSync(DATA_FILE) ? fs.statSync(DATA_FILE).size : 0;
     adapter?.checkpoint();
+    const sizeAfter = fs.statSync(DATA_FILE).size;
+    console.log(`[DB][blob] File size: ${sizeBefore} → ${sizeAfter} after checkpoint`);
 
     const { put } = await import("@vercel/blob");
     const buffer = fs.readFileSync(DATA_FILE);
