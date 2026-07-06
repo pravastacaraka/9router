@@ -11,12 +11,17 @@ function enabled() {
 // Download persisted DB from Vercel Blob into DATA_FILE on cold start.
 // Returns true if a previous DB snapshot was restored, false if first deploy.
 export async function restoreFromBlob() {
-  if (!enabled()) return false;
+  if (!enabled()) {
+    console.log("[DB][blob] Restore skipped — BLOB_READ_WRITE_TOKEN not set");
+    return false;
+  }
 
+  console.log("[DB][blob] Attempting restore…");
   const { get } = await import("@vercel/blob");
 
   try {
     const result = await get(BLOB_PATH, { access: "private" });
+    console.log("[DB][blob] get() result:", result ? `found (${result.blob?.size ?? "?"} bytes)` : "null");
     if (!result) {
       console.log("[DB][blob] No existing DB snapshot found — starting fresh");
       return false;
