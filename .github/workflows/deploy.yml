@@ -47,4 +47,4 @@ jobs:
             cd /opt/chipai
             git pull origin main
             podman compose -f docker-compose.yml pull 9router
-            podman compose -f docker-compose.yml up -d 9router
+            podman compose -f docker-compose.yml up -d --force-recreate 9router
